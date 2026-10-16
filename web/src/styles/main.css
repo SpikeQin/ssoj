@@ -1,0 +1,152 @@
+/* ---------------------------------------------------------------------------
+ * 全局样式与设计变量
+ * 配色以中性灰为主，蓝色作为交互强调色，判题状态使用统一语义色
+ * ------------------------------------------------------------------------ */
+:root {
+  --ssoj-bg: #f5f6f8;
+  --ssoj-panel: #ffffff;
+  --ssoj-border: #e4e7ed;
+  --ssoj-border-strong: #d8dce3;
+  --ssoj-text: #1f2329;
+  --ssoj-text-2: #646a73;
+  --ssoj-text-3: #8a9099;
+  --ssoj-radius: 6px;
+
+  --ssoj-primary: #2f6feb;
+  --ssoj-ac: #2f9e44;
+  --ssoj-wa: #d64545;
+  --ssoj-tle: #e8890c;
+  --ssoj-re: #7048e8;
+  --ssoj-ce: #8a9099;
+  --ssoj-running: #2f6feb;
+
+  --el-color-primary: #2f6feb;
+  /* Element Plus 的悬停、禁用等状态使用预计算的派生色，需要一并覆盖才能保持一致 */
+  --el-color-primary-light-3: #6d9af1;
+  --el-color-primary-light-5: #97b7f5;
+  --el-color-primary-light-7: #c1d4f9;
+  --el-color-primary-light-8: #d5e2fb;
+  --el-color-primary-light-9: #eaf1fd;
+  --el-color-primary-dark-2: #2659bc;
+  --el-border-radius-base: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ssoj-bg);
+  color: var(--ssoj-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC',
+    'Hiragino Sans GB', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.panel {
+  background: var(--ssoj-panel);
+  border: 1px solid var(--ssoj-border);
+  border-radius: var(--ssoj-radius);
+}
+
+.page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.muted {
+  color: var(--ssoj-text-2);
+}
+
+.mono {
+  font-family: 'Cascadia Mono', Consolas, 'Courier New', monospace;
+}
+
+/* 判题状态：文字 + 圆点，全站统一 */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.status--ac {
+  color: var(--ssoj-ac);
+}
+
+.status--wa {
+  color: var(--ssoj-wa);
+}
+
+.status--tle {
+  color: var(--ssoj-tle);
+}
+
+.status--re {
+  color: var(--ssoj-re);
+}
+
+.status--ce {
+  color: var(--ssoj-ce);
+}
+
+.status--se {
+  color: var(--ssoj-ce);
+}
+
+.status--running {
+  color: var(--ssoj-running);
+}
+
+.status--idle {
+  color: var(--ssoj-text-3);
+}
+
+/* 表格密度：教学场景需要在一屏内看到更多题目与提交 */
+.el-table {
+  --el-table-border-color: var(--ssoj-border);
+  --el-table-header-bg-color: #fafbfc;
+  --el-table-header-text-color: var(--ssoj-text-2);
+  font-size: 13px;
+}
+
+.el-table th.el-table__cell {
+  font-weight: 500;
+}
+
+.el-pagination {
+  --el-pagination-font-size: 13px;
+}

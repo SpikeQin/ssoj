@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ss.ssoj.mapper.StatsMapper">
+
+    <!-- 总榜：统计每位学生的通过题数与提交次数（判题状态 2 表示通过） -->
+    <select id="selectGlobalRank" resultType="com.ss.ssoj.vo.RankRowVO">
+        SELECT u.id                                                            AS userId,
+               u.nickname                                                      AS nickname,
+               COUNT(DISTINCT CASE WHEN s.status = 2 THEN s.problem_id END)     AS solved,
+               COUNT(s.id)                                                     AS submitCount,
+               COUNT(CASE WHEN s.status = 2 THEN 1 END)                         AS acceptCount
+        FROM sys_user u
+                 LEFT JOIN submission s ON s.user_id = u.id
+        WHERE u.deleted = 0
+          AND u.role = 0
+        GROUP BY u.id, u.nickname
+        ORDER BY solved DESC, submitCount ASC, u.id ASC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 竞赛参与人数：按竞赛分组统计提交过的用户数 -->
+    <select id="selectContestParticipants" resultType="com.ss.ssoj.vo.ContestStatVO">
+        SELECT contest_id        AS contestId,
+               COUNT(DISTINCT user_id) AS participants
+        FROM submission
+        WHERE contest_id IS NOT NULL
+        GROUP BY contest_id
+    </select>
+
+    <!-- 单个用户的提交统计，用于个人中心 -->
+    <select id="selectUserStat" resultType="com.ss.ssoj.vo.RankRowVO">
+        SELECT #{userId}                                                      AS userId,
+               NULL                                                           AS nickname,
+               COUNT(DISTINCT CASE WHEN s.status = 2 THEN s.problem_id END)    AS solved,
+               COUNT(s.id)                                                    AS submitCount,
+               COUNT(CASE WHEN s.status = 2 THEN 1 END)                        AS acceptCount
+        FROM submission s
+        WHERE s.user_id = #{userId}
+    </select>
+
+    <!-- 全部用户的提交与通过数量，一次查询避免列表页逐行统计 -->
+    <select id="selectUserStats" resultType="com.ss.ssoj.vo.RankRowVO">
+        SELECT s.user_id                                        AS userId,
+               COUNT(s.id)                                      AS submitCount,
+               COUNT(CASE WHEN s.status = 2 THEN 1 END)         AS acceptCount
+        FROM submission s
+        GROUP BY s.user_id
+    </select>
+
+</mapper>
