@@ -56,25 +56,13 @@
 | Node.js | 18 及以上（推荐 20+） | 前端构建与开发服务器 |
 | g++ / gcc | 支持 C++14 | 判题时编译 C 与 C++ 程序 |
 
-Windows 下可直接使用 MinGW 提供的 gcc / g++，并确保 `g++`、`java`、`javac` 已加入系统环境变量 `PATH`。
+Windows 下可使用 MinGW-w64 提供的 gcc / g++，安装位置与配置方式见下一节。
 
-### 判题工具链（每台机器都要装）
+### 判题工具链（必须写在配置里）
 
-判题会在本机调用 `gcc`、`g++`、`javac`、`java`，这些程序不随项目分发：
+判题会在本机调用 `gcc`、`g++`、`javac`、`java`，这些程序不随项目分发，**每台机器都要装好，并把 bin 目录写进配置**——判题不会去读系统 PATH。
 
-- **JDK 21**：必须是 JDK（带 `javac`），只装 JRE 不行
-- **MinGW-w64 8.1**（x86_64、posix-seh）：统一解压到 **`C:\mingw64`**，并把 **`C:\mingw64\bin`** 加入系统 PATH
-
-```cmd
-where g++
-where javac
-```
-
-两条都能输出路径才算配置正确。**改完 PATH 后必须完全退出 IDEA 再启动**，否则后端进程读到的仍是旧环境，会报 `Cannot run program "g++" ... CreateProcess error=2`。
-
-安装在其它目录也可以：把实际的 `bin` 目录加进 PATH，或者直接用下面的配置项。
-
-更省事的做法是不动系统 PATH，直接在 `src/main/resources/application.properties` 里分别指定各语言的 bin 目录：
+在 `src/main/resources/application.properties` 里配置三种语言的工具链目录：
 
 ```properties
 judge.languages.c.bin-dir=C:/mingw64/bin
@@ -82,7 +70,12 @@ judge.languages.cpp.bin-dir=C:/mingw64/bin
 judge.languages.java.bin-dir=C:/Program Files/Java/jdk-21/bin
 ```
 
-判题会在该目录下查找 `gcc` / `g++` / `javac` / `java`，路径带空格也没问题；留空或找不到时回退到系统 PATH。详细说明见 [docs/判题环境配置.md](docs/判题环境配置.md)。
+- **JDK 21**：必须是 JDK（带 `javac`），只装 JRE 不行
+- **MinGW-w64 8.1**（x86_64、posix-seh）：本组统一解压到 `C:\mingw64`
+- 路径用 `/` 分隔，带空格也可以（如 `C:/Program Files/Java/jdk-21/bin`）
+- 换机器时只改这三行，重启后端即可
+
+未配置或目录下找不到程序时，提交会判为 System Error 并给出具体提示，例如"在 D:/tools/mingw64/bin 下找不到 gcc"。详细步骤见 [docs/判题环境配置.md](docs/判题环境配置.md)。
 
 ## 快速开始
 

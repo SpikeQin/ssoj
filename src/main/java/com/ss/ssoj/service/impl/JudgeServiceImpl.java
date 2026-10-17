@@ -133,7 +133,8 @@ public class JudgeServiceImpl implements JudgeService {
 
             if (StringUtils.hasText(language.getCompileCommand())) {
                 ExecResult compile = exec(workspace, language.getCompileCommand(), "",
-                        properties.getCompileTimeoutSeconds() * 1000, language.getBinDir());
+                        properties.getCompileTimeoutSeconds() * 1000, language.getBinDir(),
+                        submission.getLanguage());
                 if (compile.timedOut()) {
                     finish(submissionId, JudgeStatus.COMPILE_ERROR, null,
                             "编译超时（超过 " + properties.getCompileTimeoutSeconds() + " 秒）", List.of());
@@ -165,7 +166,7 @@ public class JudgeServiceImpl implements JudgeService {
             int maxTime = 0;
             for (ProblemCase testCase : cases) {
                 ExecResult run = exec(workspace, language.getRunCommand(), testCase.getInput(),
-                        problem.getTimeLimit(), language.getBinDir());
+                        problem.getTimeLimit(), language.getBinDir(), submission.getLanguage());
                 CaseResultVO result = evaluate(testCase, run, problem.getTimeLimit());
                 // 用例编号采用执行顺序（从 1 开始），数据库主键对使用者没有意义
                 result.setCaseId((long) results.size() + 1);
@@ -214,7 +215,8 @@ public class JudgeServiceImpl implements JudgeService {
         return new CaseResultVO(testCase.getId(), JudgeStatus.ACCEPTED, run.timeMs(), "通过");
     }
 
-    private ExecResult exec(Path workspace, String command, String input, int timeoutMs, String binDir)
+    private ExecResult exec(Path workspace, String command, String input, int timeoutMs,
+                            String binDir, String languageKey)
             throws IOException, InterruptedException {
         List<String> parts = new ArrayList<>(Arrays.asList(command.trim().split("\\s+")));
         // 编译产物位于工作目录中，必须使用绝对路径：子进程的工作目录不会改变程序文件的查找位置
@@ -230,9 +232,8 @@ public class JudgeServiceImpl implements JudgeService {
                 parts.set(0, executable.toAbsolutePath().toString());
             }
         }
-        // 配置了该语言的 bin 目录时，把裸命令（gcc / g++ / javac / java）解析成目录下的绝对路径，
-        // 这样无论工具装在哪个盘、路径是否带空格，都不依赖系统 PATH。
-        resolveExecutable(parts, binDir);
+        // 把裸命令（gcc / g++ / javac / java）解析成配置目录下的绝对路径，完全不读取系统 PATH
+        resolveExecutable(parts, binDir, languageKey);
 
         Path inputFile = workspace.resolve("_stdin.txt");
         Files.writeString(inputFile, input == null ? "" : input, StandardCharsets.UTF_8);
@@ -241,7 +242,13 @@ public class JudgeServiceImpl implements JudgeService {
         builder.directory(workspace.toFile());
         builder.redirectInput(inputFile.toFile());
         applyBinDirToPath(builder, binDir);
-        Process process = builder.start();
+        Process process;
+        try {
+            process = builder.start();
+        } catch (IOException ex) {
+            throw new IOException("找不到命令 " + parts.get(0)
+                    + "，请把该程序所在目录加入系统 PATH，或在 application.properties 中配置 judge.languages.*.bin-dir", ex);
+        }
 
         Capture stdout = new Capture();
         Capture stderr = new Capture();
@@ -274,19 +281,28 @@ public class JudgeServiceImpl implements JudgeService {
                 output, stderr.text.toString(), !finished, overflow);
     }
 
-    /** 用配置的 bin 目录解析裸命令名，找不到时保持原样（回退到系统 PATH） */
-    private void resolveExecutable(List<String> parts, String binDir) {
-        if (!StringUtils.hasText(binDir) || parts.isEmpty()) {
+    /**
+     * 用配置的 bin 目录解析裸命令名。未配置目录或目录下没有该程序时直接报错，
+     * 不做系统 PATH 回退，保证每台机器用的都是配置里写死的那套工具链。
+     */
+    private void resolveExecutable(List<String> parts, String binDir, String languageKey) throws IOException {
+        if (parts.isEmpty()) {
             return;
         }
         String head = parts.get(0);
         if (head.contains("\\") || head.contains("/")) {
             return;
         }
-        Path candidate = Path.of(binDir.trim(), isWindows() ? head + ".exe" : head);
-        if (Files.exists(candidate)) {
-            parts.set(0, candidate.toAbsolutePath().toString());
+        if (!StringUtils.hasText(binDir)) {
+            throw new IOException("未配置语言 " + languageKey + " 的工具链目录，"
+                    + "请在 application.properties 中设置 judge.languages." + languageKey + ".bin-dir");
         }
+        Path candidate = Path.of(binDir.trim(), isWindows() ? head + ".exe" : head);
+        if (!Files.exists(candidate)) {
+            throw new IOException("在 " + binDir.trim() + " 下找不到 " + head
+                    + "，请检查 judge.languages." + languageKey + ".bin-dir 是否指向正确的 bin 目录");
+        }
+        parts.set(0, candidate.toAbsolutePath().toString());
     }
 
     /**
