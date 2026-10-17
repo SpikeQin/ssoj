@@ -58,6 +58,22 @@
 
 Windows 下可直接使用 MinGW 提供的 gcc / g++，并确保 `g++`、`java`、`javac` 已加入系统环境变量 `PATH`。
 
+### 判题工具链（每台机器都要装）
+
+判题会在本机调用 `gcc`、`g++`、`javac`、`java`，这些程序不随项目分发：
+
+- **JDK 21**：必须是 JDK（带 `javac`），只装 JRE 不行
+- **MinGW-w64 8.1**（x86_64、posix-seh）：统一解压到 **`C:\mingw64`**，并把 **`C:\mingw64\bin`** 加入系统 PATH
+
+```cmd
+where g++
+where javac
+```
+
+两条都能输出路径才算配置正确。**改完 PATH 后必须完全退出 IDEA 再启动**，否则后端进程读到的仍是旧环境，会报 `Cannot run program "g++" ... CreateProcess error=2`。
+
+安装在其它目录也可以，把实际的 `bin` 目录加进 PATH 即可。详细步骤与常见报错见 [docs/判题环境配置.md](docs/判题环境配置.md)。
+
 ## 快速开始
 
 ### 1. 初始化数据库
@@ -70,7 +86,7 @@ mysql -u root -p --default-character-set=utf8mb4 < sql/02_init_data.sql
 mysql -u root -p --default-character-set=utf8mb4 < sql/03_problem_data.sql
 ```
 
-`01_schema.sql` 建库建表，`02_init_data.sql` 写入账号、系统配置与公告，`03_problem_data.sql` 写入题目、测试用例与演示竞赛；`00_reset.sql` 用于开发阶段重建表结构。数据库连接信息在 `src/main/resources/application.properties` 中配置，克隆后请改成自己的账号密码。
+`01_schema.sql` 建库建表，`02_init_data.sql` 写入账号、系统配置与公告，`03_problem_data.sql` 写入题目、测试用例、演示竞赛与演示提交记录（含判题结果，可直接看到榜单与提交历史）；`00_reset.sql` 用于开发阶段重建表结构。数据库连接信息在 `src/main/resources/application.properties` 中配置，克隆后请改成自己的账号密码。
 
 ### 2. 启动后端
 

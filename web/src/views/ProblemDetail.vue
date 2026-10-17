@@ -107,6 +107,10 @@ async function handleSubmit() {
     )
     const data = await getSubmissionList({ problemId: problem.value.id, size: 3 })
     mySubmissions.value = data.records
+  } catch (error) {
+    // 提交失败（间隔限制、题目下线、队列已满、超时等）时要清掉 pending，否则页面会一直显示“Pending”
+    judgeStatus.value = null
+    ElMessage.error(error.message || '提交失败，请稍后重试')
   } finally {
     submitting.value = false
   }
