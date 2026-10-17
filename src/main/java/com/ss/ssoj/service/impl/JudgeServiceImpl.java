@@ -133,7 +133,7 @@ public class JudgeServiceImpl implements JudgeService {
 
             if (StringUtils.hasText(language.getCompileCommand())) {
                 ExecResult compile = exec(workspace, language.getCompileCommand(), "",
-                        properties.getCompileTimeoutSeconds() * 1000);
+                        properties.getCompileTimeoutSeconds() * 1000, language.getBinDir());
                 if (compile.timedOut()) {
                     finish(submissionId, JudgeStatus.COMPILE_ERROR, null,
                             "编译超时（超过 " + properties.getCompileTimeoutSeconds() + " 秒）", List.of());
@@ -165,7 +165,7 @@ public class JudgeServiceImpl implements JudgeService {
             int maxTime = 0;
             for (ProblemCase testCase : cases) {
                 ExecResult run = exec(workspace, language.getRunCommand(), testCase.getInput(),
-                        problem.getTimeLimit());
+                        problem.getTimeLimit(), language.getBinDir());
                 CaseResultVO result = evaluate(testCase, run, problem.getTimeLimit());
                 // 用例编号采用执行顺序（从 1 开始），数据库主键对使用者没有意义
                 result.setCaseId((long) results.size() + 1);
@@ -214,7 +214,7 @@ public class JudgeServiceImpl implements JudgeService {
         return new CaseResultVO(testCase.getId(), JudgeStatus.ACCEPTED, run.timeMs(), "通过");
     }
 
-    private ExecResult exec(Path workspace, String command, String input, int timeoutMs)
+    private ExecResult exec(Path workspace, String command, String input, int timeoutMs, String binDir)
             throws IOException, InterruptedException {
         List<String> parts = new ArrayList<>(Arrays.asList(command.trim().split("\\s+")));
         // 编译产物位于工作目录中，必须使用绝对路径：子进程的工作目录不会改变程序文件的查找位置
@@ -230,18 +230,9 @@ public class JudgeServiceImpl implements JudgeService {
                 parts.set(0, executable.toAbsolutePath().toString());
             }
         }
-        // 配置了工具链目录时，把裸命令（gcc / g++ / javac / java）解析成该目录下的绝对路径，
+        // 配置了该语言的 bin 目录时，把裸命令（gcc / g++ / javac / java）解析成目录下的绝对路径，
         // 这样无论工具装在哪个盘、路径是否带空格，都不依赖系统 PATH。
-        String toolchain = properties.getToolchainDir();
-        if (StringUtils.hasText(toolchain) && !parts.isEmpty()) {
-            String head = parts.get(0);
-            if (!head.contains("\\") && !head.contains("/")) {
-                Path candidate = Path.of(toolchain.trim(), isWindows() ? head + ".exe" : head);
-                if (Files.exists(candidate)) {
-                    parts.set(0, candidate.toAbsolutePath().toString());
-                }
-            }
-        }
+        resolveExecutable(parts, binDir);
 
         Path inputFile = workspace.resolve("_stdin.txt");
         Files.writeString(inputFile, input == null ? "" : input, StandardCharsets.UTF_8);
@@ -249,7 +240,7 @@ public class JudgeServiceImpl implements JudgeService {
         ProcessBuilder builder = new ProcessBuilder(parts);
         builder.directory(workspace.toFile());
         builder.redirectInput(inputFile.toFile());
-        applyToolchainPath(builder);
+        applyBinDirToPath(builder, binDir);
         Process process = builder.start();
 
         Capture stdout = new Capture();
@@ -283,13 +274,27 @@ public class JudgeServiceImpl implements JudgeService {
                 output, stderr.text.toString(), !finished, overflow);
     }
 
+    /** 用配置的 bin 目录解析裸命令名，找不到时保持原样（回退到系统 PATH） */
+    private void resolveExecutable(List<String> parts, String binDir) {
+        if (!StringUtils.hasText(binDir) || parts.isEmpty()) {
+            return;
+        }
+        String head = parts.get(0);
+        if (head.contains("\\") || head.contains("/")) {
+            return;
+        }
+        Path candidate = Path.of(binDir.trim(), isWindows() ? head + ".exe" : head);
+        if (Files.exists(candidate)) {
+            parts.set(0, candidate.toAbsolutePath().toString());
+        }
+    }
+
     /**
-     * 把配置里指定的工具链目录加到子进程 PATH 的最前面。
-     * 这样即使 MinGW / JDK 不在系统 PATH 里，判题也能找到 gcc / g++ / javac / java。
+     * 把该语言的 bin 目录加到子进程 PATH 的最前面。
+     * 编译器自身还需要同目录下的 cc1plus、as、ld 等程序，JDK 也需要同目录的运行库。
      */
-    private void applyToolchainPath(ProcessBuilder builder) {
-        String toolchain = properties.getToolchainDir();
-        if (!StringUtils.hasText(toolchain)) {
+    private void applyBinDirToPath(ProcessBuilder builder, String binDir) {
+        if (!StringUtils.hasText(binDir)) {
             return;
         }
         Map<String, String> env = builder.environment();
@@ -298,7 +303,7 @@ public class JudgeServiceImpl implements JudgeService {
                 .filter(name -> "PATH".equalsIgnoreCase(name))
                 .findFirst().orElse("PATH");
         String existing = env.getOrDefault(key, "");
-        String prefix = toolchain.trim();
+        String prefix = binDir.trim();
         env.put(key, existing.isEmpty() ? prefix : prefix + File.pathSeparator + existing);
     }
 

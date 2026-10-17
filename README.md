@@ -74,13 +74,15 @@ where javac
 
 安装在其它目录也可以：把实际的 `bin` 目录加进 PATH，或者直接用下面的配置项。
 
-更省事的做法是不动系统 PATH，直接在 `src/main/resources/application.properties` 里指定工具链目录：
+更省事的做法是不动系统 PATH，直接在 `src/main/resources/application.properties` 里分别指定各语言的 bin 目录：
 
 ```properties
-judge.toolchain-dir=D:/tools/mingw64/bin
+judge.languages.c.bin-dir=C:/mingw64/bin
+judge.languages.cpp.bin-dir=C:/mingw64/bin
+judge.languages.java.bin-dir=C:/Program Files/Java/jdk-21/bin
 ```
 
-留空表示使用系统 PATH；填写后判题子进程会优先使用该目录下的 `gcc` / `g++` / `javac` / `java`，路径带空格也没问题。详细步骤与常见报错见 [docs/判题环境配置.md](docs/判题环境配置.md)。
+判题会在该目录下查找 `gcc` / `g++` / `javac` / `java`，路径带空格也没问题；留空或找不到时回退到系统 PATH。详细说明见 [docs/判题环境配置.md](docs/判题环境配置.md)。
 
 ## 快速开始
 

@@ -31,13 +31,6 @@ public class JudgeProperties {
     /** 编译超时，单位秒 */
     private int compileTimeoutSeconds = 20;
 
-    /**
-     * 判题工具链目录（gcc / g++ / javac / java 所在目录）。
-     * 留空表示使用系统 PATH；填写后会把该目录临时加到判题子进程的 PATH 前面，
-     * 这样 MinGW / JDK 装在任意位置都不需要改系统环境变量。
-     */
-    private String toolchainDir;
-
     private Map<String, Language> languages = new LinkedHashMap<>();
 
     @Data
@@ -54,5 +47,12 @@ public class JudgeProperties {
 
         /** 运行命令，如 main 或 java -cp . Main */
         private String runCommand;
+
+        /**
+         * 该语言工具链的 bin 目录，例如 C:/mingw64/bin 或 C:/Program Files/Java/jdk-21/bin。
+         * 填写后判题会在该目录下查找 gcc / g++ / javac / java，不依赖系统 PATH；
+         * 留空或目录下找不到时回退到系统 PATH。
+         */
+        private String binDir;
     }
 }
