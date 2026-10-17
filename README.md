@@ -1,14 +1,15 @@
 # 蚀山在线判题系统（SSoj）
 
-基于 Spring Boot 与 Vue 3 的教学型在线判题系统，支持题库练习、在线评测、竞赛与榜单，配套管理后台。课程设计项目，小组名称为 **蚀山制造**。
+一套可以本地部署的教学型在线判题系统：题库练习、在线评测、竞赛与榜单，外加一个完整的管理后台。
+仓库自带 11 道题、124 个测试点、一场演示竞赛和一批演示提交记录，按下面的步骤导入后即可登录体验。
 
 ![题库](docs/screenshots/题库列表.png)
 
 ## 功能
 
-- **题库**：按关键词、难度、我的做题状态筛选，Markdown 题面渲染，算法标签检索
-- **在线评测**：支持 C / C++ / Java，提交后异步判题，逐用例返回状态与耗时，编译错误展示编译器原始信息
-- **竞赛**：A / B / C 编号编排，按通过题数与罚时排名；可开启赛题隐藏，比赛结束前赛题不出现在题库，赛后自动回到题库
+- **题库**：按关键词、难度、做题状态筛选，Markdown 题面渲染，算法标签检索
+- **在线评测**：支持 C / C++ / Java，提交后异步判题，逐用例返回状态与耗时，编译错误直接回显编译器信息
+- **竞赛**：A / B / C 编号编排，按通过题数与罚时排名；可开启赛题隐藏，比赛结束后自动回到题库
 - **榜单与统计**：总榜、个人统计、管理端运行概览
 - **管理后台**：题目与测试用例、竞赛编排、用户与密码、公告与系统配置
 
@@ -42,64 +43,77 @@
 │   ├── application.properties   数据源、判题语言与令牌配置
 │   └── mapper/                  统计类自定义 SQL
 ├── sql/                  数据库脚本
-├── web/                  前端工程
-└── docs/screenshots/     界面截图
+├── web/                  前端工程（Vue 3）
+└── docs/                 部署说明与界面截图
 ```
 
 ## 环境要求
 
-| 依赖 | 版本 | 用途 |
+| 依赖 | 版本 | 说明 |
 | --- | --- | --- |
-| JDK | 21 | 运行后端服务 |
-| Maven | 3.8 及以上 | 后端依赖管理与打包 |
+| JDK | 21 | 运行后端；Java 判题需要其中的 `javac`，只装 JRE 不行 |
+| Maven | 3.8 及以上 | 构建后端 |
 | MySQL | 8.0 | 业务数据存储 |
-| Node.js | 18 及以上（推荐 20+） | 前端构建与开发服务器 |
-| g++ / gcc | 支持 C++14 | 判题时编译 C 与 C++ 程序 |
+| Node.js | 18 及以上（推荐 20+） | 构建与运行前端 |
+| MinGW-w64 | 8.1（x86_64、posix-seh） | C / C++ 判题需要 `gcc`、`g++` |
 
-Windows 下可使用 MinGW-w64 提供的 gcc / g++，安装位置与配置方式见下一节。
+> 判题工具链**不需要加入系统 PATH**：只要把 `gcc` / `g++` / `javac` / `java` 所在的 `bin` 目录写进配置文件即可，见下一步。
 
-### 判题工具链（必须写在配置里）
+## 本地运行
 
-判题会在本机调用 `gcc`、`g++`、`javac`、`java`，这些程序不随项目分发，**每台机器都要装好，并把 bin 目录写进配置**——判题不会去读系统 PATH。
+### 1. 建库并导入数据
 
-在 `src/main/resources/application.properties` 里配置三种语言的工具链目录：
+进入 `sql` 目录，按顺序执行（脚本自带 `USE ssoj;`，会创建 `ssoj` 库）：
+
+```bash
+mysql -u root -p --default-character-set=utf8mb4 < 01_schema.sql
+mysql -u root -p --default-character-set=utf8mb4 < 02_init_data.sql
+mysql -u root -p --default-character-set=utf8mb4 < 03_problem_data.sql
+```
+
+| 脚本 | 内容 |
+| --- | --- |
+| `01_schema.sql` | 建表（8 张业务表），可重复执行 |
+| `02_init_data.sql` | 账号、系统配置、公告 |
+| `03_problem_data.sql` | 11 道题、124 个测试点、演示竞赛、演示提交记录 |
+| `00_reset.sql` | 开发用：清空所有业务表后重建 |
+
+> `02` 和 `03` 会先删除对应数据再写入，重复导入会覆盖现有账号 / 题目 / 提交记录。
+
+### 2. 修改配置（必做）
+
+打开 `src/main/resources/application.properties`，改两处：
+
+**数据库连接**（改成你本机的账号密码）：
 
 ```properties
-judge.languages.c.bin-dir=C:/mingw64/bin
-judge.languages.cpp.bin-dir=C:/mingw64/bin
+spring.datasource.url=jdbc:mysql://localhost:3306/ssoj?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+spring.datasource.username=root
+spring.datasource.password=你的密码
+```
+
+**判题工具链**（填三个 bin 目录，判题不会去读系统 PATH）：
+
+```properties
+judge.languages.c.bin-dir=D:/tools/mingw64/bin
+judge.languages.cpp.bin-dir=D:/tools/mingw64/bin
 judge.languages.java.bin-dir=C:/Program Files/Java/jdk-21/bin
 ```
 
-- **JDK 21**：必须是 JDK（带 `javac`），只装 JRE 不行
-- **MinGW-w64 8.1**（x86_64、posix-seh）：本组统一解压到 `C:\mingw64`
-- 路径用 `/` 分隔，带空格也可以（如 `C:/Program Files/Java/jdk-21/bin`）
-- 换机器时只改这三行，重启后端即可
+- 路径用 `/` 分隔，带空格也没问题（JDK 默认就在 `Program Files` 下）
+- MinGW 的目录是 `gcc.exe` 所在的那层 `bin`，不是上一级 `mingw64`
+- 没配置或路径不对时，提交会判为 System Error，并在提示里写明"在哪个目录下找不到哪个程序"
+- 更详细的排查见 [docs/判题环境配置.md](docs/判题环境配置.md)
 
-未配置或目录下找不到程序时，提交会判为 System Error 并给出具体提示，例如"在 D:/tools/mingw64/bin 下找不到 gcc"。详细步骤见 [docs/判题环境配置.md](docs/判题环境配置.md)。
-
-## 快速开始
-
-### 1. 初始化数据库
-
-在 `sql` 目录下按顺序执行：
-
-```bash
-mysql -u root -p --default-character-set=utf8mb4 < sql/01_schema.sql
-mysql -u root -p --default-character-set=utf8mb4 < sql/02_init_data.sql
-mysql -u root -p --default-character-set=utf8mb4 < sql/03_problem_data.sql
-```
-
-`01_schema.sql` 建库建表，`02_init_data.sql` 写入账号、系统配置与公告，`03_problem_data.sql` 写入题目、测试用例、演示竞赛与演示提交记录（含判题结果，可直接看到榜单与提交历史）；`00_reset.sql` 用于开发阶段重建表结构。数据库连接信息在 `src/main/resources/application.properties` 中配置，克隆后请改成自己的账号密码。
-
-### 2. 启动后端
+### 3. 启动后端
 
 ```bash
 mvn spring-boot:run
 ```
 
-也可以在 IDEA 中直接运行 `SSojApplication`。启动成功后监听 `http://localhost:8080`，接口统一前缀 `/api`。
+也可以用 IDEA 打开工程后直接运行 `SSojApplication`。启动成功后监听 `http://localhost:8080`，接口统一前缀 `/api`。
 
-### 3. 启动前端
+### 4. 启动前端
 
 ```bash
 cd web
@@ -107,30 +121,43 @@ npm install
 npm run dev
 ```
 
-浏览器访问 `http://localhost:5173`，开发服务器已把 `/api` 代理到后端 8080 端口。
+浏览器打开 `http://localhost:5173`。前端已把 `/api` 代理到 `http://127.0.0.1:8080`，两个服务都启动后即可使用。
 
-## 默认账号
+### 5. 登录
 
-| 角色 | 用户名 | 密码 |
-| --- | --- | --- |
-| 管理员 | ztw666 | 123456 |
-| 学生 | 本人学号 | 123456 |
+| 角色 | 用户名 | 密码 | 说明 |
+| --- | --- | --- | --- |
+| 管理员 | `ztw666` | `123456` | 登录后可进入「管理后台」 |
+| 学生 | 见 `02_init_data.sql` 中的学号 | `123456` | 可提交代码、参加竞赛 |
 
-按课程演示要求，密码在数据库中明文保存，账号仅用于本地演示，请勿复用真实密码。
+按课程演示的要求，密码在数据库中明文保存，请只在本地或内网使用，不要复用真实密码，也不要直接暴露到公网。
 
 ## 判题说明
 
-- 支持语言：C（gcc）、C++（g++）、Java（javac / java）；语言与编译运行命令集中在 `application.properties` 的 `judge.languages.*`，新增语言不需要改判题代码
-- 判题流程：提交入库后进入判题队列，依次完成编译、逐用例运行、结果比对与结果回写，页面轮询展示判题进度
-- 资源限制：按题目时间限制计时，超时强制结束进程；输出超过上限（默认 16 MB）判为运行错误
-- 结果比对：忽略每行行末空白与文末换行
-- 服务重启后，处于待判题与判题中状态的提交会自动重新入队
-- 目前不支持特殊判题（SPJ）与浮点误差比对
+- 支持语言：C（gcc）、C++（g++）、Java（javac / java）。语言、bin 目录与编译运行命令都集中在 `application.properties` 的 `judge.languages.*`，新增语言不需要改判题代码。
+- 判题流程：提交入库后进入判题队列，依次完成编译、逐用例运行、结果比对与回写；页面每 700 ms 轮询提交详情展示进度。
+- 资源限制：按题目时间限制计时，超时强制结束进程；单个用例输出超过 16 MB 判为运行错误；编译超时 20 秒。
+- 结果比对：忽略每行行末空白与文末换行（兼容 CRLF），遇到首个未通过的用例即停止。
+- 服务重启后，处于"待判题 / 判题中"的提交会在启动时自动重新入队。
 
-> 需求规格说明书、操作说明与答辩 PPT 随课程设计一并提交，本仓库只包含工程源码、数据库脚本与界面截图。
+## 常见问题
+
+**端口被占用**：后端改 `application.properties` 的 `server.port`，前端改 `web/vite.config.js` 的 `server.port`，同时把代理目标改成后端实际端口。
+
+**启动报数据库连接失败**：确认 MySQL 已启动、`ssoj` 库已导入、`application.properties` 里的账号密码与本机一致。
+
+**提交后判题结果是 System Error**：多半是 `judge.languages.*.bin-dir` 没配或配错。系统错误信息里会写出具体目录和程序名，照着改即可。
+
+**提交后页面一直显示 Pending**：说明提交请求没有成功（常见原因是 10 秒内的重复提交、题目已下线、判题队列已满）。打开浏览器开发者工具的 Network，查看 `submissions` 请求返回的 `message`。
+
+**C++ 编译报 `bits/stdc++.h` 相关错误**：本机 MinGW 8.1 在 `-std=c++17` 下有头文件缺陷，项目已固定使用 `-std=gnu++14`，不要改成 c++17。
 
 ## 已知限制
 
-- 判题在宿主机直接执行编译运行命令，没有容器沙箱，不限制内存占用，仅用于校内教学演示
-- 不支持特殊判题与浮点误差比对，需要容差判定的题目要保证标准答案唯一
+- 判题在宿主机直接执行编译运行命令，没有容器沙箱，也不限制内存占用，仅适合教学与内网使用
+- 不支持特殊判题（SPJ）与浮点误差比对，需要容差判定的题目要保证标准答案唯一
 - 判题进度使用前端轮询实现，尚未接入 WebSocket 推送
+
+## 说明
+
+本项目为课程设计作品（小组：蚀山制造），需求规格说明书、操作说明与答辩 PPT 随课程设计一并提交。
