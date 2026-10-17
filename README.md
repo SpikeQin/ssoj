@@ -80,6 +80,8 @@ mysql -u root -p --default-character-set=utf8mb4 < 03_problem_data.sql
 
 > `02` 和 `03` 会先删除对应数据再写入，重复导入会覆盖现有账号 / 题目 / 提交记录。
 
+> 演示竞赛的赛程固定为 2026-10-16 10:00 ~ 16:40（已结束），榜单按这个时间窗统计。想演示"比赛进行中"的赛题隐藏，在管理后台编辑竞赛、把起止时间改成当前时间即可。
+
 ### 2. 修改配置（必做）
 
 打开 `src/main/resources/application.properties`，改两处：

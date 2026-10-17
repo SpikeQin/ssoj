@@ -181,7 +181,8 @@ public class SubmissionServiceImpl implements SubmissionService {
             return;
         }
         long passed = Duration.between(last.getSubmitTime(), LocalDateTime.now()).getSeconds();
-        if (passed < interval) {
+        // passed 为负数说明上一条提交的时间在未来（时钟不同步或导入的演示数据），此时不拦截
+        if (passed >= 0 && passed < interval) {
             throw new BusinessException("提交过于频繁，请 " + (interval - passed) + " 秒后再试");
         }
     }
