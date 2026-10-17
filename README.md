@@ -72,7 +72,15 @@ where javac
 
 两条都能输出路径才算配置正确。**改完 PATH 后必须完全退出 IDEA 再启动**，否则后端进程读到的仍是旧环境，会报 `Cannot run program "g++" ... CreateProcess error=2`。
 
-安装在其它目录也可以，把实际的 `bin` 目录加进 PATH 即可。详细步骤与常见报错见 [docs/判题环境配置.md](docs/判题环境配置.md)。
+安装在其它目录也可以：把实际的 `bin` 目录加进 PATH，或者直接用下面的配置项。
+
+更省事的做法是不动系统 PATH，直接在 `src/main/resources/application.properties` 里指定工具链目录：
+
+```properties
+judge.toolchain-dir=D:/tools/mingw64/bin
+```
+
+留空表示使用系统 PATH；填写后判题子进程会优先使用该目录下的 `gcc` / `g++` / `javac` / `java`，路径带空格也没问题。详细步骤与常见报错见 [docs/判题环境配置.md](docs/判题环境配置.md)。
 
 ## 快速开始
 

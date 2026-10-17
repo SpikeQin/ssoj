@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -228,6 +230,18 @@ public class JudgeServiceImpl implements JudgeService {
                 parts.set(0, executable.toAbsolutePath().toString());
             }
         }
+        // 配置了工具链目录时，把裸命令（gcc / g++ / javac / java）解析成该目录下的绝对路径，
+        // 这样无论工具装在哪个盘、路径是否带空格，都不依赖系统 PATH。
+        String toolchain = properties.getToolchainDir();
+        if (StringUtils.hasText(toolchain) && !parts.isEmpty()) {
+            String head = parts.get(0);
+            if (!head.contains("\\") && !head.contains("/")) {
+                Path candidate = Path.of(toolchain.trim(), isWindows() ? head + ".exe" : head);
+                if (Files.exists(candidate)) {
+                    parts.set(0, candidate.toAbsolutePath().toString());
+                }
+            }
+        }
 
         Path inputFile = workspace.resolve("_stdin.txt");
         Files.writeString(inputFile, input == null ? "" : input, StandardCharsets.UTF_8);
@@ -235,6 +249,7 @@ public class JudgeServiceImpl implements JudgeService {
         ProcessBuilder builder = new ProcessBuilder(parts);
         builder.directory(workspace.toFile());
         builder.redirectInput(inputFile.toFile());
+        applyToolchainPath(builder);
         Process process = builder.start();
 
         Capture stdout = new Capture();
@@ -266,6 +281,25 @@ public class JudgeServiceImpl implements JudgeService {
         int exitCode = finished ? process.exitValue() : -1;
         return new ExecResult(exitCode, (int) Math.min(elapsed, Integer.MAX_VALUE),
                 output, stderr.text.toString(), !finished, overflow);
+    }
+
+    /**
+     * 把配置里指定的工具链目录加到子进程 PATH 的最前面。
+     * 这样即使 MinGW / JDK 不在系统 PATH 里，判题也能找到 gcc / g++ / javac / java。
+     */
+    private void applyToolchainPath(ProcessBuilder builder) {
+        String toolchain = properties.getToolchainDir();
+        if (!StringUtils.hasText(toolchain)) {
+            return;
+        }
+        Map<String, String> env = builder.environment();
+        // Windows 上环境变量名可能是 Path 而不是 PATH，先按不区分大小写找到已有的键
+        String key = env.keySet().stream()
+                .filter(name -> "PATH".equalsIgnoreCase(name))
+                .findFirst().orElse("PATH");
+        String existing = env.getOrDefault(key, "");
+        String prefix = toolchain.trim();
+        env.put(key, existing.isEmpty() ? prefix : prefix + File.pathSeparator + existing);
     }
 
     private void pump(InputStream stream, Capture capture, int limit, Process process) {
