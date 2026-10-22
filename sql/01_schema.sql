@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS `sys_user`
 (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `username`         VARCHAR(32)  NOT NULL COMMENT '登录用户名，全局唯一',
-    `password`         VARCHAR(100) NOT NULL COMMENT '密码，BCrypt 加密后的密文',
+    `password`         VARCHAR(100) NOT NULL COMMENT '明文保存，生产环境应改为 BCrypt',
     `nickname`         VARCHAR(32)  NOT NULL COMMENT '昵称，列表与榜单展示使用',
     `email`            VARCHAR(64)           DEFAULT NULL COMMENT '邮箱',
     `role`             TINYINT      NOT NULL DEFAULT 0 COMMENT '角色：0-学生，1-管理员',
